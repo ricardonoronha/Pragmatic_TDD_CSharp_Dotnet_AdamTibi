@@ -1,5 +1,6 @@
-using AdamTibi.OpenWeather;
+
 using Uqs.Weather.Providers;
+using Uqs.Weather.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

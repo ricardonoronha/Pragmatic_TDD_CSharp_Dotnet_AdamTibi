@@ -1,7 +1,7 @@
-using AdamTibi.OpenWeather;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Uqs.Weather.Providers;
+using Uqs.Weather.Services;
 
 namespace Uqs.Weather.Controllers;
 
@@ -88,17 +88,24 @@ public class WeatherForecastController : ControllerBase
 
         const decimal GREENWICH_LAT = -5.53394m; // novo oriente 
         const decimal GREENWICH_LON = -40.7751m; // novo oriente 
-       
-        OneCallResponse res = await _client.OneCallAsync(GREENWICH_LAT, GREENWICH_LON, new[] { Excludes.Current, Excludes.Minutely, Excludes.Hourly, Excludes.Alerts }, Units.Metric);
-        WeatherForecast[] wfs = new WeatherForecast[FORECAST_DAYS];
-        for (int i = 0; i < wfs.Length; i++)
-        {
-            var wf = wfs[i] = new WeatherForecast();
-            wf.Date = res.Daily[i + 1].Dt;
-            double forecastedTemp = res.Daily[i + 1].Temp.Day;
-            wf.TemperatureC = (int)Math.Round(forecastedTemp);
-            wf.Summary = MapFeelToTemp(wf.TemperatureC);
-        }
+
+        WeatherResponse res = await _client.WeatherCallAsync(GREENWICH_LAT, GREENWICH_LON, Units.Metric);
+
+        var noon = TimeSpan.FromHours(12);
+
+        IEnumerable<WeatherForecast> wfs = res.List
+            .Where(x => x.Dt.TimeOfDay == noon)
+            .Select(x => new WeatherForecast()
+            {
+                Date = x.Dt,
+                TemperatureC = (int)Math.Round(x.Main.Temp),
+                Summary = MapFeelToTemp((int)Math.Round(x.Main.Temp))
+            })
+            // .Skip(1) // drop a current day
+            .Take(FORECAST_DAYS)
+            .ToList();
+
         return wfs;
+
     }
 }
