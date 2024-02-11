@@ -1,6 +1,7 @@
 using AdamTibi.OpenWeather;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Uqs.Weather.Providers;
 
 namespace Uqs.Weather.Controllers;
 
@@ -19,11 +20,19 @@ public class WeatherForecastController : ControllerBase
 
     private readonly ILogger<WeatherForecastController> _logger;
 
+    public readonly IDateTimeProvider _dateTimeProvider;
 
-    public WeatherForecastController(IConfiguration configuration, ILogger<WeatherForecastController> logger)
+    public readonly IRandomProvider _randomProvider;
+
+    public readonly IClient _client;
+
+    public WeatherForecastController(IConfiguration configuration, ILogger<WeatherForecastController> logger, IDateTimeProvider dateTimeProvider, IRandomProvider randomProvider, IClient client)
     {
         _config = configuration;
         _logger = logger;
+        _dateTimeProvider = dateTimeProvider;
+        _randomProvider = randomProvider;
+        _client = client;
     }
 
     [HttpGet(Name = "GetWeatherForecast")]
@@ -42,13 +51,12 @@ public class WeatherForecastController : ControllerBase
     [HttpGet("GetRandomWeatherForecast")]
     public IEnumerable<WeatherForecast> GetRandom()
     {
-        WeatherForecast[] wfs = new
-            WeatherForecast[FORECAST_DAYS];
+        WeatherForecast[] wfs = new WeatherForecast[FORECAST_DAYS];
         for (int i = 0; i < wfs.Length; i++)
         {
             var wf = wfs[i] = new WeatherForecast();
-            wf.Date = DateTime.Now.AddDays(i + 1);
-            wf.TemperatureC = Random.Shared.Next(-20, 55);
+            wf.Date = _dateTimeProvider.Now.AddDays(i + 1);
+            wf.TemperatureC = _randomProvider.Next(-20, 55);
             wf.Summary = MapFeelToTemp(wf.TemperatureC);
         }
         return wfs;
@@ -80,12 +88,8 @@ public class WeatherForecastController : ControllerBase
 
         const decimal GREENWICH_LAT = -5.53394m; // novo oriente 
         const decimal GREENWICH_LON = -40.7751m; // novo oriente 
-
-
-        string apiKey = _config["OpenWeather:Key"];
-        HttpClient httpClient = new HttpClient();
-        Client openWeatherClient = new Client(apiKey, httpClient);
-        OneCallResponse res = await openWeatherClient.OneCallAsync(GREENWICH_LAT, GREENWICH_LON, new[] { Excludes.Current, Excludes.Minutely, Excludes.Hourly, Excludes.Alerts }, Units.Metric);
+       
+        OneCallResponse res = await _client.OneCallAsync(GREENWICH_LAT, GREENWICH_LON, new[] { Excludes.Current, Excludes.Minutely, Excludes.Hourly, Excludes.Alerts }, Units.Metric);
         WeatherForecast[] wfs = new WeatherForecast[FORECAST_DAYS];
         for (int i = 0; i < wfs.Length; i++)
         {
